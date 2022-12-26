@@ -11,6 +11,7 @@ pub enum Instruction {
     Jump(u16),
     SetRegister(u8, u8),
     AddValueRegister(u8, u8),
+    SetIndexRegister(u16),
     Nothing,
     NotYetImplemented,
 }
@@ -50,8 +51,12 @@ impl Instruction {
                 let value = (opcode & 0x00FF) as u8;
                 Instruction::AddValueRegister(register, value)
             }
+            _ if 0xF000 & opcode == 0xA000 => {
+                let value = (opcode & 0x0FFF) as u16;
+                Instruction::SetIndexRegister(value)
+            }
             _ => Instruction::NotYetImplemented,
-
+            
             
         }
     }
@@ -110,4 +115,18 @@ mod tests {
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::NotYetImplemented);
     }
+
+    #[test]
+    fn test_decode_set_index_register() {
+        // Success
+        let opcode = 0xAF2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::SetIndexRegister(0xF2F));
+
+        // Failure
+        let opcode = 0xBF2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::NotYetImplemented);
+    }
+    
 }
