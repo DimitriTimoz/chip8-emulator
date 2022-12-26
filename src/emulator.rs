@@ -12,6 +12,11 @@ pub enum Instruction {
     SetRegister(u8, u8),
     AddValueRegister(u8, u8),
     SetIndexRegister(u16),
+    Draw {
+        x: u8,
+        y: u8,
+        n: u8,
+    },
     Nothing,
     NotYetImplemented,
 }
@@ -50,10 +55,16 @@ impl Instruction {
                 let register  = ((opcode & 0x0F00) >> 8) as u8;
                 let value = (opcode & 0x00FF) as u8;
                 Instruction::AddValueRegister(register, value)
-            }
+            },
             _ if 0xF000 & opcode == 0xA000 => {
                 let value = (opcode & 0x0FFF) as u16;
                 Instruction::SetIndexRegister(value)
+            },
+            _ if 0xF000 & opcode == 0xD000 => {
+                let n = (opcode & 0x000F) as u8;
+                let y = ((opcode & 0x0F0) >> 4) as u8;
+                let x = ((opcode & 0xF00) >> 8) as u8;
+                Instruction::Draw { x, y, n}
             }
             _ => Instruction::NotYetImplemented,
             
@@ -125,6 +136,19 @@ mod tests {
 
         // Failure
         let opcode = 0xBF2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::NotYetImplemented);
+    }
+
+    #[test]
+    fn test_draw() {
+        // Success
+        let opcode = 0xDF2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::Draw { x: 0xF, y: 0x2, n: 0xF});
+
+        // Failure
+        let opcode = 0xEF2F;
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::NotYetImplemented);
     }
