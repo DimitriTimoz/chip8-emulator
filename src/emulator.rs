@@ -1,8 +1,14 @@
+use std::io::Read;
+
 use crate::cpu::CPU;
 use crate::drivers::*;
+
+const START_RAM_ADDRESS: usize = 0x000;
+
 pub struct Emulator {
     cpu: CPU,
     display_driver: display::DisplayDriver,
+    RAM: [u8; 4096],
 }
 
 #[derive(Debug, PartialEq)]
@@ -18,7 +24,7 @@ pub enum Instruction {
         n: u8,
     },
     Nothing,
-    NotYetImplemented,
+    NotYetImplemented(u16),
 }
 
 impl Emulator {
@@ -30,8 +36,20 @@ impl Emulator {
             // ...
             cpu: CPU::new(),
             display_driver,
+            RAM: [0; 4096],
             // ...
         })
+    }
+
+    pub fn load_program(&mut self, path: &str) -> Result<(), String> {
+        let mut file = match std::fs::File::open(path) {
+            Ok(file) => file,
+            Err(_) => return Err(format!("Could not open file {}", path)),
+        };
+        
+        file.read(&mut self.RAM[START_RAM_ADDRESS..]).unwrap();
+     
+        Ok(())
     }
 
 }
@@ -66,7 +84,7 @@ impl Instruction {
                 let x = ((opcode & 0xF00) >> 8) as u8;
                 Instruction::Draw { x, y, n}
             }
-            _ => Instruction::NotYetImplemented,
+            _ => Instruction::NotYetImplemented(opcode),
             
             
         }
@@ -98,7 +116,7 @@ mod tests {
         // Failure
         let opcode = 0x2FFF;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::NotYetImplemented);
+        assert_eq!(instruction, Instruction::NotYetImplemented(0x2FFF));
     }
     
     #[test]
@@ -111,7 +129,7 @@ mod tests {
         // Failure
         let opcode = 0x8F2F;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::NotYetImplemented);
+        assert_eq!(instruction, Instruction::NotYetImplemented(0x8F2F));
     }
 
     #[test]
@@ -124,7 +142,7 @@ mod tests {
         // Failure
         let opcode = 0x9F2F;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::NotYetImplemented);
+        assert_eq!(instruction, Instruction::NotYetImplemented(0x9F2F));
     }
 
     #[test]
@@ -137,7 +155,7 @@ mod tests {
         // Failure
         let opcode = 0xBF2F;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::NotYetImplemented);
+        assert_eq!(instruction, Instruction::NotYetImplemented(0xBF2F));
     }
 
     #[test]
@@ -150,7 +168,7 @@ mod tests {
         // Failure
         let opcode = 0xEF2F;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::NotYetImplemented);
+        assert_eq!(instruction, Instruction::NotYetImplemented(0xEF2F));
     }
     
 }
