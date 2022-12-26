@@ -6,6 +6,7 @@ extern crate sdl2;
 
 pub struct DisplayDriver {
     canvas: Canvas<Window>,
+    pixels: [[bool; WIDTH as usize]; HEIGHT as usize],
 }
 
 const WIDTH: u32 = 64;
@@ -34,12 +35,18 @@ impl DisplayDriver {
 
         Ok(Self {
             canvas,
+            pixels: [[false; WIDTH as usize]; HEIGHT as usize],
         })
     }
 
     pub fn init(&mut self) -> Result<(), String> {
         self.clear_screen()?;
+        self.pixels = [[false; WIDTH as usize]; HEIGHT as usize];
         Ok(())
+    }
+
+    pub fn get_pixel(&self, x: usize, y: usize) -> bool {
+        self.pixels[y][x]
     }
 
     pub fn clear_screen(&mut self) -> Result<(), String> {

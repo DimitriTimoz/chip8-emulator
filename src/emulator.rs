@@ -52,6 +52,36 @@ impl Emulator {
         Ok(())
     }
 
+    pub fn next_instruction(&mut self) -> Result<(), String> {
+        let pc = self.cpu.pc as usize;
+        let opcode = (self.RAM[pc] as u16) << 8 | self.RAM[pc + 1] as u16;
+        let instruction = Instruction::from(opcode);
+        match instruction {
+            Instruction::ClearScreen => {
+                self.display_driver.clear_screen()?;
+            },
+            Instruction::Jump(address) => {
+                self.cpu.pc = address;
+            },
+            Instruction::SetRegister(register, value) => {
+                self.cpu.registers[register as usize] = value;
+            },
+            Instruction::AddValueRegister(register, value) => {
+                self.cpu.registers[register as usize] += value;
+            },
+            Instruction::SetIndexRegister(value) => {
+                self.cpu.I = value;
+            },
+            Instruction::Nothing => {},
+            Instruction::NotYetImplemented(opcode) => {
+                println!("Not yet implemented: {:#X}", opcode);
+            },
+            _ => ()
+        }
+        Ok(())
+        
+    }
+
 }
 
 impl Instruction {

@@ -5,8 +5,9 @@ struct Timer {
 }
 
 pub(crate) struct CPU {
-    pc: u16,
-    registers: [u8; 16],
+    pub pc: u16,
+    pub registers: [u8; 16],
+    pub I: u16,
     timer: Timer,
     sound_timer: Timer,
 }
