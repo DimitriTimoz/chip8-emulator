@@ -42,6 +42,7 @@ pub enum Instruction {
     ShiftLeft(u8, u8),
     StoreMemory(u8),
     LoadMemory(u8),
+    DecimalConversion(u8),
 }
 
 impl Emulator {
@@ -278,6 +279,10 @@ impl Instruction {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 Instruction::LoadMemory(x)
             },
+            _ if 0xF0FF & opcode == 0xF033 => {
+                let x = ((opcode & 0x0F00) >> 8) as u8;
+                Instruction::DecimalConversion(x)
+            },
             0x0000 => Instruction::Nothing,
             _ => Instruction::NotYetImplemented(opcode),
             
@@ -379,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ALU_instructions() {
+    fn test_alu_instructions() {
         // Success
         let opcode = 0x8F20;
         let instruction = Instruction::from(opcode);
@@ -428,6 +433,14 @@ mod tests {
         let opcode = 0xF165;
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::LoadMemory(0x1));
+    }
+
+    #[test]
+    fn test_decimal_conversion() {
+        // Success
+        let opcode = 0xF233;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::DecimalConversion(0x2));
     }
     
 }
