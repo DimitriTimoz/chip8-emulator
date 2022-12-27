@@ -12,7 +12,7 @@ fn main() -> Result<(), String> {
 
     let mut emulator = emulator::Emulator::new(&context)?;
 
-    emulator.load_program("ibm_logo.ch8")?;
+    emulator.load_program("test_opcode.ch8")?;
 
     'running: loop {
         ::std::thread::sleep(Duration::from_millis(300));

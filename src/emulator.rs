@@ -69,7 +69,7 @@ impl Emulator {
                 self.cpu.registers[register as usize] = value;
             },
             Instruction::AddValueRegister(register, value) => {
-                self.cpu.registers[register as usize] += value;
+                self.cpu.registers[register as usize] += value % 255;
             },
             Instruction::SetIndexRegister(value) => {
                 self.cpu.I = value;
@@ -80,8 +80,10 @@ impl Emulator {
                 self.cpu.registers[15] = 0;
                 for i in 0..n {
                     let byte = self.RAM[self.cpu.I as usize + i as usize];
+                    let y = y + i;
                     for j in 0..8 {
-                        if byte & (0b1 >> j) == 0b1 {
+                        let x = x + j;
+                        if byte & (0b10000000 >> j) != 0 {
                             if self.display_driver.get_pixel(x as usize, y as usize)  {
                                 self.cpu.registers[15] = 1;
                                 self.display_driver.set_pixel(x as usize, y as usize, false);
@@ -89,15 +91,11 @@ impl Emulator {
                                 self.display_driver.set_pixel(x as usize, y as usize, true);
                             }
                         }
-                        x += 1;
                         if x >= 64 {
-                            x = 63;
                             break;
                         }
                     }
-                    y += 1;
                     if y >= 32 {
-                        y = 31;
                         break;
                     }
                 }
