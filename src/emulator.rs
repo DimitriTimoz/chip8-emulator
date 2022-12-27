@@ -9,6 +9,7 @@ pub struct Emulator {
     cpu: CPU,
     display_driver: display::DisplayDriver,
     RAM: [u8; 4096],
+    stack: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -25,6 +26,8 @@ pub enum Instruction {
     },
     Nothing,
     NotYetImplemented(u16),
+    CallSubroutine(u16),
+    ReturnFromSubroutine,
 }
 
 impl Emulator {
@@ -37,6 +40,7 @@ impl Emulator {
             cpu: CPU::new(),
             display_driver,
             RAM: [0; 4096],
+            stack: Vec::new(),
             // ...
         })
     }
@@ -75,8 +79,8 @@ impl Emulator {
                 self.cpu.I = value;
             },
             Instruction::Draw { vx, vy, n } => {
-                let mut x = self.cpu.registers[vx as usize] % 64;
-                let mut y = self.cpu.registers[vy as usize] % 32;
+                let x = self.cpu.registers[vx as usize] % 64;
+                let y = self.cpu.registers[vy as usize] % 32;
                 self.cpu.registers[15] = 0;
                 for i in 0..n {
                     let byte = self.RAM[self.cpu.I as usize + i as usize];
@@ -101,6 +105,22 @@ impl Emulator {
                 }
                 self.display_driver.draw()?;
             },
+            Instruction::CallSubroutine(address) => {
+                self.stack.push((self.cpu.pc >> 8) as u8);
+                self.stack.push((self.cpu.pc & 0xFF) as u8);
+                self.cpu.pc = address;
+                return Ok(());
+            },
+            Instruction::ReturnFromSubroutine => {
+                if self.stack.len() > 1 {
+                    let b1 = self.stack.pop().unwrap();
+                    let b2 = self.stack.pop().unwrap();
+                    self.cpu.pc = b1 as u16 | (b2 << 8) as u16;
+                    return Ok(());
+                } else {
+                    println!("Stack doesn't contain PC to return from the subroutine");
+                }
+            },
             Instruction::Nothing => {},
             Instruction::NotYetImplemented(opcode) => {
                 println!("Not yet implemented: {:#X}", opcode);
@@ -120,6 +140,9 @@ impl Instruction {
         match opcode {
             0x00E0 => {
                 Instruction::ClearScreen
+            },
+            0x00EE => {
+                Instruction::ReturnFromSubroutine
             },
             _ if 0xF000 & opcode == 0x1000 => {
                 let address = opcode & 0x0FFF;
@@ -144,7 +167,11 @@ impl Instruction {
                 let vy = ((opcode & 0x0F0) >> 4) as u8;
                 let vx = ((opcode & 0xF00) >> 8) as u8;
                 Instruction::Draw { vx, vy, n}
-            }
+            },
+            _ if 0xF000 & opcode == 0x2000 => {
+                let address = opcode & 0x0FFF;
+                Instruction::CallSubroutine(address)
+            },
             0x0000 => Instruction::Nothing,
             _ => Instruction::NotYetImplemented(opcode),
             
@@ -231,6 +258,25 @@ mod tests {
         let opcode = 0xEF2F;
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::NotYetImplemented(0xEF2F));
+    }
+
+    #[test]
+    fn test_subroutine() {
+        // Success
+        let opcode = 0x2F2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::CallSubroutine(0xF2F));
+
+        // Failure
+        let opcode = 0x3F2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::NotYetImplemented(0x3F2F));
+
+        // Return
+
+        let opcode = 0x00EE;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::ReturnFromSubroutine);
     }
     
 }
