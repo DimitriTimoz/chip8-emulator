@@ -173,6 +173,12 @@ impl Emulator {
                     self.cpu.registers[i as usize] = self.RAM[self.cpu.I as usize + i as usize];
                 }
             },
+            Instruction::DecimalConversion(vx) => {
+                let vx = self.cpu.registers[*vx as usize];
+                self.RAM[self.cpu.I as usize] = vx / 100;
+                self.RAM[self.cpu.I as usize + 1] = (vx % 100) / 10;;
+                self.RAM[self.cpu.I as usize + 2] = vx % 10;
+            },
             _ => {
                 self.cpu.execute(instruction)?
             }
