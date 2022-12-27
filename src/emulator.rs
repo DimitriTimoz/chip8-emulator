@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::cpu::CPU;
+use crate::cpu::{CPU, ALU};
 use crate::drivers::*;
 
 pub const START_RAM_ADDRESS: usize = 0x200;
@@ -32,6 +32,14 @@ pub enum Instruction {
     SkipIfNotEq(u8, u8),
     SkipIfRegEq(u8, u8),
     SkipIfRegNotEq(u8, u8),
+    SetToValue(u8, u8),
+    Or(u8, u8),
+    And(u8, u8),
+    Xor(u8, u8),
+    Add(u8, u8),
+    Sub(u8, u8),
+    ShiftRight(u8),
+    ShiftLeft(u8),
 }
 
 impl Emulator {
@@ -151,6 +159,9 @@ impl Emulator {
             Instruction::NotYetImplemented(opcode) => {
                 println!("Not yet implemented: {:#X}", opcode);
             },
+            _ => {
+                self.cpu.execute(instruction)?
+            }
         }
         if self.cpu.pc <= 0xFFF {
             self.cpu.pc += 2;
@@ -169,6 +180,22 @@ impl Instruction {
             },
             0x00EE => {
                 Instruction::ReturnFromSubroutine
+            },
+            _ if 0xF000 & opcode == 0x8000 => {
+                let vx = ((opcode & 0x0F00) >> 8) as u8;
+                let vy = ((opcode & 0x00F0) >> 4) as u8;
+                match opcode & 0x000F {
+                    0x0 => Instruction::SetToValue(vx, vy),
+                    0x1 => Instruction::Or(vx, vy),
+                    0x2 => Instruction::And(vx, vy),
+                    0x3 => Instruction::Xor(vx, vy),
+                    0x4 => Instruction::Add(vx, vy),
+                    0x5 => Instruction::Sub(vx, vy),
+                    0x6 => Instruction::ShiftRight(vx),
+                    0x7 => Instruction::Sub(vx, vy),
+                    0xE => Instruction::ShiftLeft(vx),
+                    _ => Instruction::NotYetImplemented(opcode),
+                }
             },
             _ if 0xF000 & opcode == 0x1000 => {
                 let address = opcode & 0x0FFF;
@@ -317,6 +344,47 @@ mod tests {
         let opcode = 0x9F2F;
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::SkipIfRegNotEq(0xF, 0x2));
+    }
+
+    #[test]
+    fn test_ALU_instructions() {
+        // Success
+        let opcode = 0x8F20;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::SetToValue(0xF, 0x2));
+
+        let opcode = 0x8F21;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::Or(0xF, 0x2));
+
+        let opcode = 0x8F22;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::And(0xF, 0x2));
+
+        let opcode = 0x8F23;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::Xor(0xF, 0x2));
+
+        let opcode = 0x8F24;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::Add(0xF, 0x2));
+
+        let opcode = 0x8F25;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::Sub(0xF, 0x2));
+
+        let opcode = 0x8F26;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::ShiftRight(0xF));
+        
+        let opcode = 0x8F27;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::Sub(0xF, 0x2));
+
+        let opcode = 0x8F2E;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::ShiftLeft(0xF));
+        
     }
     
 }

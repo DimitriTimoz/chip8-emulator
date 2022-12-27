@@ -1,4 +1,4 @@
-use crate::emulator::START_RAM_ADDRESS;
+use crate::emulator::{START_RAM_ADDRESS, Instruction};
 
 
 
@@ -23,5 +23,20 @@ impl CPU {
             sound_timer: Timer { counter: 0 },
             I: 0,
         }
+    }
+}
+
+pub trait ALU {
+    fn execute(&mut self, instruction: Instruction) -> Result<(), String>;
+}
+
+impl ALU for CPU {
+    fn execute(&mut self, instruction: Instruction) -> Result<(), String> {
+        match instruction {
+            
+            _ => println!("Instruction not implemented for the ALU: {:?}", instruction)
+        }
+
+        Ok(())
     }
 }
