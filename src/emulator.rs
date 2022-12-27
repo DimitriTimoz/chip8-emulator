@@ -28,6 +28,8 @@ pub enum Instruction {
     NotYetImplemented(u16),
     CallSubroutine(u16),
     ReturnFromSubroutine,
+    SkipIfEq(u8, u8),
+    SkipIfNotEq(u8, u8),
 }
 
 impl Emulator {
@@ -121,6 +123,18 @@ impl Emulator {
                     println!("Stack doesn't contain PC to return from the subroutine");
                 }
             },
+            Instruction::SkipIfEq(vx, n) => {
+                let value = self.RAM[vx as usize];
+                if value == n {
+                    self.cpu.pc += 2;
+                }
+            },
+            Instruction::SkipIfNotEq(vx, n) => {
+                let value = self.RAM[vx as usize];
+                if value != n {
+                    self.cpu.pc += 2;
+                }
+            }
             Instruction::Nothing => {},
             Instruction::NotYetImplemented(opcode) => {
                 println!("Not yet implemented: {:#X}", opcode);
@@ -147,6 +161,16 @@ impl Instruction {
             _ if 0xF000 & opcode == 0x1000 => {
                 let address = opcode & 0x0FFF;
                 Instruction::Jump(address)
+            },
+            _ if 0xF000 & opcode == 0x3000 => {
+                let register = ((opcode & 0x0F00) >> 8) as u8;
+                let value = (opcode & 0x00FF) as u8;
+                Instruction::SkipIfEq(register, value)
+            },
+            _ if 0xF000 & opcode == 0x4000 => {
+                let register = ((opcode & 0x0F00) >> 8) as u8;
+                let value = (opcode & 0x00FF) as u8;
+                Instruction::SkipIfNotEq(register, value)
             },
             _ if 0xF000 & opcode == 0x6000 => {
                 let register = ((opcode & 0x0F00) >> 8) as u8;
@@ -203,9 +227,9 @@ mod tests {
         assert_eq!(instruction, Instruction::Jump(0xF2F));
 
         // Failure
-        let opcode = 0x2FFF;
+        let opcode = 0xBFFF;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::NotYetImplemented(0x2FFF));
+        assert_eq!(instruction, Instruction::NotYetImplemented(0xBFFF));
     }
     
     #[test]
@@ -268,15 +292,32 @@ mod tests {
         assert_eq!(instruction, Instruction::CallSubroutine(0xF2F));
 
         // Failure
-        let opcode = 0x3F2F;
+        let opcode = 0xBF2F;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::NotYetImplemented(0x3F2F));
+        assert_eq!(instruction, Instruction::NotYetImplemented(0xBF2F));
 
         // Return
-
         let opcode = 0x00EE;
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::ReturnFromSubroutine);
+    }
+
+    #[test]
+    fn test_skip_if_eq_and_neq() {
+        // Success
+        let opcode = 0x3F2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::SkipIfEq(0xF, 0x2F));
+
+        let opcode = 0x4F2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::SkipIfNotEq(0xF, 0x2F));
+
+        // Failure
+        let opcode = 0x5F2F;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::NotYetImplemented(0x5F2F));
+
     }
     
 }
