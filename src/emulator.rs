@@ -38,8 +38,8 @@ pub enum Instruction {
     Xor(u8, u8),
     Add(u8, u8),
     Sub(u8, u8),
-    ShiftRight(u8),
-    ShiftLeft(u8),
+    ShiftRight(u8, u8),
+    ShiftLeft(u8, u8),
 }
 
 impl Emulator {
@@ -68,33 +68,30 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn next_instruction(&mut self) -> Result<(), String> {
-        let pc = self.cpu.pc as usize;
-        let opcode = (self.RAM[pc] as u16) << 8 | self.RAM[pc + 1] as u16;
-        let instruction = Instruction::from(opcode);
-        println!("{} - {:?}", pc, instruction);
+    pub fn execute(&mut self, instruction: &Instruction) -> Result<(), String> {
         match instruction {
             Instruction::ClearScreen => {
                 self.display_driver.clear_screen()?;
             },
             Instruction::Jump(address) => {
-                self.cpu.pc = address;
+                self.cpu.pc = *address;
                 return Ok(());
             },
             Instruction::SetRegister(register, value) => {
-                self.cpu.registers[register as usize] = value;
+                self.cpu.registers[*register as usize] = *value;
             },
             Instruction::AddValueRegister(register, value) => {
-                self.cpu.registers[register as usize] += value % 255;
+                let (v, _) = self.cpu.registers[*register as usize].overflowing_add(*value);
+                self.cpu.registers[*register as usize] = v;
             },
             Instruction::SetIndexRegister(value) => {
-                self.cpu.I = value;
+                self.cpu.I = *value;
             },
             Instruction::Draw { vx, vy, n } => {
-                let x = self.cpu.registers[vx as usize] % 64;
-                let y = self.cpu.registers[vy as usize] % 32;
+                let x = self.cpu.registers[*vx as usize] % 64;
+                let y = self.cpu.registers[*vy as usize] % 32;
                 self.cpu.registers[15] = 0;
-                for i in 0..n {
+                for i in 0..*n {
                     let byte = self.RAM[self.cpu.I as usize + i as usize];
                     let y = y + i;
                     for j in 0..8 {
@@ -118,39 +115,44 @@ impl Emulator {
                 self.display_driver.draw()?;
             },
             Instruction::CallSubroutine(address) => {
-                self.stack.push((self.cpu.pc >> 8) as u8);
+                self.stack.push(((self.cpu.pc >> 8) & 0xFF) as u8);
                 self.stack.push((self.cpu.pc & 0xFF) as u8);
-                self.cpu.pc = address;
+                self.cpu.pc = *address;
                 return Ok(());
             },
             Instruction::ReturnFromSubroutine => {
                 if self.stack.len() > 1 {
                     let b1 = self.stack.pop().unwrap();
                     let b2 = self.stack.pop().unwrap();
-                    self.cpu.pc = b1 as u16 | (b2 << 8) as u16;
+                    self.cpu.pc = b1 as u16 | ((b2 as u16) << 8);
                     return Ok(());
                 } else {
                     println!("Stack doesn't contain PC to return from the subroutine");
                 }
             },
             Instruction::SkipIfEq(vx, n) => {
-                let value = self.RAM[vx as usize];
-                if value == n {
+                let value = self.cpu.registers[*vx as usize];
+                println!("SkipIfEq: value: {}, n: {}", value, n);
+                if value == *n {
                     self.cpu.pc += 2;
                 }
             },
             Instruction::SkipIfNotEq(vx, n) => {
-                let value = self.RAM[vx as usize];
-                if value != n {
+                let value = self.cpu.registers[*vx as usize];
+                if value != *n {
                     self.cpu.pc += 2;
                 }
             },
             Instruction::SkipIfRegEq(vx, vy) => {
+                let vx = self.cpu.registers[*vx as usize];
+                let vy = self.cpu.registers[*vy as usize];
                 if vx == vy {
                     self.cpu.pc += 2;
                 }
             },
             Instruction::SkipIfRegNotEq(vx, vy) => {
+                let vx = self.cpu.registers[*vx as usize];
+                let vy = self.cpu.registers[*vy as usize];
                 if vx != vy {
                     self.cpu.pc += 2;
                 }
@@ -163,12 +165,24 @@ impl Emulator {
                 self.cpu.execute(instruction)?
             }
         }
+
         if self.cpu.pc <= 0xFFF {
             self.cpu.pc += 2;
         }
+
         Ok(())
-        
     }
+    
+    pub fn next_instruction(&mut self) -> Result<(), String> {
+        let pc = self.cpu.pc as usize;
+        let opcode = (self.RAM[pc] as u16) << 8 | self.RAM[pc + 1] as u16;
+        let instruction = Instruction::from(opcode);
+        println!("{} {:#X} - {:?} ", pc, opcode, instruction);
+        self.execute(&instruction)?;
+       
+        Ok(())
+    }
+ 
 
 }
 
@@ -191,9 +205,9 @@ impl Instruction {
                     0x3 => Instruction::Xor(vx, vy),
                     0x4 => Instruction::Add(vx, vy),
                     0x5 => Instruction::Sub(vx, vy),
-                    0x6 => Instruction::ShiftRight(vx),
+                    0x6 => Instruction::ShiftRight(vx, vy),
                     0x7 => Instruction::Sub(vx, vy),
-                    0xE => Instruction::ShiftLeft(vx),
+                    0xE => Instruction::ShiftLeft(vx, vy),
                     _ => Instruction::NotYetImplemented(opcode),
                 }
             },
@@ -242,12 +256,11 @@ impl Instruction {
             },
             _ if 0xF000 & opcode == 0x9000 => {
                 let vx = ((opcode & 0x0F00) >> 8) as u8;
-                let vy = ((opcode & 0x00F0) >> 4) as u8;
+                let vy = ((opcode & 0x00FF) >> 4) as u8;
                 Instruction::SkipIfRegNotEq(vx, vy)
             },
             0x0000 => Instruction::Nothing,
             _ => Instruction::NotYetImplemented(opcode),
-            
             
         }
     }
@@ -375,7 +388,7 @@ mod tests {
 
         let opcode = 0x8F26;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::ShiftRight(0xF));
+        assert_eq!(instruction, Instruction::ShiftRight(0xF, 0x2));
         
         let opcode = 0x8F27;
         let instruction = Instruction::from(opcode);
@@ -383,7 +396,7 @@ mod tests {
 
         let opcode = 0x8F2E;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::ShiftLeft(0xF));
+        assert_eq!(instruction, Instruction::ShiftLeft(0xF, 0x2));
         
     }
     

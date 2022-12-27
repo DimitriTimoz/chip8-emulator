@@ -1,6 +1,4 @@
-use std::time::Duration;
-
-use sdl2::{video::Window, render::Canvas, pixels::{Color, self}};
+use sdl2::{video::Window, render::Canvas, pixels};
 
 extern crate sdl2;
 
@@ -66,7 +64,6 @@ impl DisplayDriver {
                         PIXEL_SIZE,
                         PIXEL_SIZE,
                     ))?;
-                    println!("Drawing pixel at ({}, {})", x, y)
                 }
             }
         }

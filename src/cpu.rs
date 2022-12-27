@@ -27,13 +27,38 @@ impl CPU {
 }
 
 pub trait ALU {
-    fn execute(&mut self, instruction: Instruction) -> Result<(), String>;
+    fn execute(&mut self, instruction: &Instruction) -> Result<(), String>;
 }
 
 impl ALU for CPU {
-    fn execute(&mut self, instruction: Instruction) -> Result<(), String> {
+    fn execute(&mut self, instruction: &Instruction) -> Result<(), String> {
         match instruction {
-            
+            Instruction::SetToValue(vx, vy) => self.registers[*vx as usize] = self.registers[*vy as usize],
+            Instruction::Or(vx, vy) => self.registers[*vx as usize] |= self.registers[*vy as usize],
+            Instruction::And(vx, vy) => self.registers[*vx as usize] &= self.registers[*vy as usize],
+            Instruction::Xor(vx, vy) => self.registers[*vx as usize] ^= self.registers[*vy as usize],
+            Instruction::Add(vx, vy) => {
+                let (result, overflow) = self.registers[*vx as usize].overflowing_add(self.registers[*vy as usize]);
+                self.registers[*vx as usize] = result;
+                self.registers[0xF] = if overflow { 1 } else { 0 };
+            },
+            Instruction::Sub(vx, vy) => {
+                let (result, overflow) = self.registers[*vx as usize].overflowing_sub(self.registers[*vy as usize]);
+                self.registers[*vx as usize] = result;
+                self.registers[0xF] = if overflow { 0 } else { 1 };
+            },
+            Instruction::ShiftRight(vx, vy) => {
+                let vx = *vx as usize;
+                self.registers[vx] = self.registers[*vy as usize];
+                self.registers[0xF] = self.registers[vx] & 0x1;
+                self.registers[vx] >>= 1;
+            },
+            Instruction::ShiftLeft(vx, vy) => {
+                let vx = *vx as usize;
+                self.registers[vx] = self.registers[*vy as usize];
+                self.registers[0xF] = self.registers[vx] & 0x1;
+                self.registers[vx] <<= 1;
+            },
             _ => println!("Instruction not implemented for the ALU: {:?}", instruction)
         }
 
