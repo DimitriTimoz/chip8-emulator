@@ -15,9 +15,9 @@ fn main() -> Result<(), String> {
     emulator.load_program("ibm_logo.ch8")?;
 
     'running: loop {
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+        ::std::thread::sleep(Duration::from_millis(300));
       
-
+        emulator.next_instruction()?;
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }

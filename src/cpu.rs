@@ -1,3 +1,5 @@
+use crate::emulator::START_RAM_ADDRESS;
+
 
 
 struct Timer {
@@ -15,10 +17,11 @@ pub(crate) struct CPU {
 impl CPU {
     pub fn new() -> CPU {
         CPU {
-            pc: 0x000,
+            pc: START_RAM_ADDRESS as u16,
             registers: [0; 16],
             timer: Timer { counter: 0 },
             sound_timer: Timer { counter: 0 },
+            I: 0,
         }
     }
 }

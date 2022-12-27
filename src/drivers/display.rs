@@ -22,7 +22,7 @@ impl DisplayDriver {
                 WIDTH * PIXEL_SIZE,
                 HEIGHT * PIXEL_SIZE,
             )
-            .position_centered()
+            .position(0, 0)
             .opengl()
             .build()
             .unwrap();
@@ -49,12 +49,39 @@ impl DisplayDriver {
         self.pixels[y][x]
     }
 
-    pub fn clear_screen(&mut self) -> Result<(), String> {
+    pub fn set_pixel(&mut self, x: usize, y: usize, value: bool) {
+        self.pixels[y][x] = value
+    }
+
+    pub fn draw(&mut self) -> Result<(), String> {
+        self.canvas.set_draw_color(sdl2::pixels::Color::WHITE);
+        self.canvas.clear();
         self.canvas.set_draw_color(sdl2::pixels::Color::BLACK);
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                if self.pixels[y as usize][x as usize] {
+                    self.canvas.fill_rect(sdl2::rect::Rect::new(
+                        x as i32 * PIXEL_SIZE as i32,
+                        y as i32 * PIXEL_SIZE as i32,
+                        PIXEL_SIZE,
+                        PIXEL_SIZE,
+                    ))?;
+                    println!("Drawing pixel at ({}, {})", x, y)
+                }
+            }
+        }
+        self.canvas.present();
+
+        Ok(())
+    }
+
+
+    pub fn clear_screen(&mut self) -> Result<(), String> {
+        self.canvas.set_draw_color(sdl2::pixels::Color::WHITE);
+        self.pixels = [[false; WIDTH as usize]; HEIGHT as usize];
         self.canvas.clear();
 
         self.canvas.present();
-        println!("Screen cleared");
         Ok(())
     }
 }

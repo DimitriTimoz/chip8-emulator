@@ -3,7 +3,7 @@ use std::io::Read;
 use crate::cpu::CPU;
 use crate::drivers::*;
 
-const START_RAM_ADDRESS: usize = 0x000;
+pub const START_RAM_ADDRESS: usize = 0x200;
 
 pub struct Emulator {
     cpu: CPU,
@@ -19,8 +19,8 @@ pub enum Instruction {
     AddValueRegister(u8, u8),
     SetIndexRegister(u16),
     Draw {
-        x: u8,
-        y: u8,
+        vx: u8,
+        vy: u8,
         n: u8,
     },
     Nothing,
@@ -56,12 +56,14 @@ impl Emulator {
         let pc = self.cpu.pc as usize;
         let opcode = (self.RAM[pc] as u16) << 8 | self.RAM[pc + 1] as u16;
         let instruction = Instruction::from(opcode);
+        println!("{} - {:?}", pc, instruction);
         match instruction {
             Instruction::ClearScreen => {
                 self.display_driver.clear_screen()?;
             },
             Instruction::Jump(address) => {
                 self.cpu.pc = address;
+                return Ok(());
             },
             Instruction::SetRegister(register, value) => {
                 self.cpu.registers[register as usize] = value;
@@ -72,11 +74,42 @@ impl Emulator {
             Instruction::SetIndexRegister(value) => {
                 self.cpu.I = value;
             },
+            Instruction::Draw { vx, vy, n } => {
+                let mut x = self.cpu.registers[vx as usize] % 64;
+                let mut y = self.cpu.registers[vy as usize] % 32;
+                self.cpu.registers[15] = 0;
+                for i in 0..n {
+                    let byte = self.RAM[self.cpu.I as usize + i as usize];
+                    for j in 0..8 {
+                        if byte & (0b1 >> j) == 0b1 {
+                            if self.display_driver.get_pixel(x as usize, y as usize)  {
+                                self.cpu.registers[15] = 1;
+                                self.display_driver.set_pixel(x as usize, y as usize, false);
+                            } else if !self.display_driver.get_pixel(x as usize, y as usize)  {
+                                self.display_driver.set_pixel(x as usize, y as usize, true);
+                            }
+                        }
+                        x += 1;
+                        if x >= 64 {
+                            x = 63;
+                            break;
+                        }
+                    }
+                    y += 1;
+                    if y >= 32 {
+                        y = 31;
+                        break;
+                    }
+                }
+                self.display_driver.draw()?;
+            },
             Instruction::Nothing => {},
             Instruction::NotYetImplemented(opcode) => {
                 println!("Not yet implemented: {:#X}", opcode);
             },
-            _ => ()
+        }
+        if self.cpu.pc <= 0xFFF {
+            self.cpu.pc += 2;
         }
         Ok(())
         
@@ -110,10 +143,11 @@ impl Instruction {
             },
             _ if 0xF000 & opcode == 0xD000 => {
                 let n = (opcode & 0x000F) as u8;
-                let y = ((opcode & 0x0F0) >> 4) as u8;
-                let x = ((opcode & 0xF00) >> 8) as u8;
-                Instruction::Draw { x, y, n}
+                let vy = ((opcode & 0x0F0) >> 4) as u8;
+                let vx = ((opcode & 0xF00) >> 8) as u8;
+                Instruction::Draw { vx, vy, n}
             }
+            0x0000 => Instruction::Nothing,
             _ => Instruction::NotYetImplemented(opcode),
             
             
@@ -193,7 +227,7 @@ mod tests {
         // Success
         let opcode = 0xDF2F;
         let instruction = Instruction::from(opcode);
-        assert_eq!(instruction, Instruction::Draw { x: 0xF, y: 0x2, n: 0xF});
+        assert_eq!(instruction, Instruction::Draw { vx: 0xF, vy: 0x2, n: 0xF});
 
         // Failure
         let opcode = 0xEF2F;
