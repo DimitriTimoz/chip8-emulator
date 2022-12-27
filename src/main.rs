@@ -12,10 +12,10 @@ fn main() -> Result<(), String> {
 
     let mut emulator = emulator::Emulator::new(&context)?;
 
-    emulator.load_program("test_opcode.ch8")?;
+    emulator.load_program("bc_test.ch8")?;
 
     'running: loop {
-        ::std::thread::sleep(Duration::from_millis(1));
+        ::std::thread::sleep(Duration::from_millis(50));
       
         emulator.next_instruction()?;
         for event in event_pump.poll_iter() {
@@ -36,7 +36,7 @@ fn main() -> Result<(), String> {
 
 /*
     ALU:
-    RAM: 4 KB 4096 bytes
+    ram: 4 KB 4096 bytes
     Display: 64 x 32 Monochrome
     Program Counter: PC
     16-bit Address Register: I

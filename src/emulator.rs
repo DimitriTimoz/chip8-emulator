@@ -8,7 +8,7 @@ pub const START_RAM_ADDRESS: usize = 0x200;
 pub struct Emulator {
     cpu: CPU,
     display_driver: display::DisplayDriver,
-    RAM: [u8; 4096],
+    ram: [u8; 4096],
     stack: Vec<u8>,
 }
 
@@ -19,6 +19,7 @@ pub enum Instruction {
     SetRegister(u8, u8),
     AddValueRegister(u8, u8),
     SetIndexRegister(u16),
+    SetIndexFromRegister(u8),
     Draw {
         vx: u8,
         vy: u8,
@@ -50,11 +51,30 @@ impl Emulator {
         let mut display_driver = display::DisplayDriver::new(context)?;
 
         display_driver.init()?;
+        let mut ram = [0; 4096];
+        let font = [0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+            0x20, 0x60, 0x20, 0x20, 0x70, // 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+            0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+            ];
+        ram[0..font.len()].copy_from_slice(&font);
         Ok(Emulator {
             // ...
             cpu: CPU::new(),
             display_driver,
-            RAM: [0; 4096],
+            ram,
             stack: Vec::new(),
             // ...
         })
@@ -66,7 +86,7 @@ impl Emulator {
             Err(_) => return Err(format!("Could not open file {}", path)),
         };
         
-        file.read(&mut self.RAM[START_RAM_ADDRESS..]).unwrap();
+        file.read(&mut self.ram[START_RAM_ADDRESS..]).unwrap();
      
         Ok(())
     }
@@ -95,7 +115,7 @@ impl Emulator {
                 let y = self.cpu.registers[*vy as usize] % 32;
                 self.cpu.registers[15] = 0;
                 for i in 0..*n {
-                    let byte = self.RAM[self.cpu.I as usize + i as usize];
+                    let byte = self.ram[self.cpu.I as usize + i as usize];
                     let y = y + i;
                     for j in 0..8 {
                         let x = x + j;
@@ -165,19 +185,19 @@ impl Emulator {
             },
             Instruction::StoreMemory(x) => {
                 for i in 0..=*x {
-                    self.RAM[self.cpu.I as usize + i as usize] = self.cpu.registers[i as usize];
+                    self.ram[self.cpu.I as usize + i as usize] = self.cpu.registers[i as usize];
                 }
             },
             Instruction::LoadMemory(x) => {
                 for i in 0..=*x {
-                    self.cpu.registers[i as usize] = self.RAM[self.cpu.I as usize + i as usize];
+                    self.cpu.registers[i as usize] = self.ram[self.cpu.I as usize + i as usize];
                 }
             },
             Instruction::DecimalConversion(vx) => {
                 let vx = self.cpu.registers[*vx as usize];
-                self.RAM[self.cpu.I as usize] = vx / 100;
-                self.RAM[self.cpu.I as usize + 1] = (vx % 100) / 10;;
-                self.RAM[self.cpu.I as usize + 2] = vx % 10;
+                self.ram[self.cpu.I as usize] = vx / 100;
+                self.ram[self.cpu.I as usize + 1] = (vx % 100) / 10;;
+                self.ram[self.cpu.I as usize + 2] = vx % 10;
             },
             _ => {
                 self.cpu.execute(instruction)?
@@ -193,7 +213,7 @@ impl Emulator {
     
     pub fn next_instruction(&mut self) -> Result<(), String> {
         let pc = self.cpu.pc as usize;
-        let opcode = (self.RAM[pc] as u16) << 8 | self.RAM[pc + 1] as u16;
+        let opcode = (self.ram[pc] as u16) << 8 | self.ram[pc + 1] as u16;
         let instruction = Instruction::from(opcode);
         println!("{} {:#X} - {:?} ", pc, opcode, instruction);
         self.execute(&instruction)?;
@@ -288,6 +308,10 @@ impl Instruction {
             _ if 0xF0FF & opcode == 0xF033 => {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 Instruction::DecimalConversion(x)
+            },
+            _ if 0xF0FF & opcode == 0xF029 => {
+                let x = ((opcode & 0x0F00) >> 8) as u8;
+                Instruction::SetIndexFromRegister(x)
             },
             0x0000 => Instruction::Nothing,
             _ => Instruction::NotYetImplemented(opcode),
@@ -447,6 +471,14 @@ mod tests {
         let opcode = 0xF233;
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::DecimalConversion(0x2));
+    }
+
+    #[test]
+    fn test_index_from_register() {
+        // Success
+        let opcode = 0xF229;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::SetIndexFromRegister(0x2));
     }
     
 }
