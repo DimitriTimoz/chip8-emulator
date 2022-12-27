@@ -162,6 +162,16 @@ impl Emulator {
             Instruction::NotYetImplemented(opcode) => {
                 println!("Not yet implemented: {:#X}", opcode);
             },
+            Instruction::StoreMemory(x) => {
+                for i in 0..=*x {
+                    self.RAM[self.cpu.I as usize + i as usize] = self.cpu.registers[i as usize];
+                }
+            },
+            Instruction::LoadMemory(x) => {
+                for i in 0..=*x {
+                    self.cpu.registers[i as usize] = self.RAM[self.cpu.I as usize + i as usize];
+                }
+            },
             _ => {
                 self.cpu.execute(instruction)?
             }
