@@ -15,7 +15,7 @@ fn main() -> Result<(), String> {
     emulator.load_program("test_opcode.ch8")?;
 
     'running: loop {
-        ::std::thread::sleep(Duration::from_millis(200));
+        ::std::thread::sleep(Duration::from_millis(1));
       
         emulator.next_instruction()?;
         for event in event_pump.poll_iter() {

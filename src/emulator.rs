@@ -40,6 +40,8 @@ pub enum Instruction {
     Sub(u8, u8),
     ShiftRight(u8, u8),
     ShiftLeft(u8, u8),
+    StoreMemory(u8),
+    LoadMemory(u8),
 }
 
 impl Emulator {
@@ -124,7 +126,7 @@ impl Emulator {
                 if self.stack.len() > 1 {
                     let b1 = self.stack.pop().unwrap();
                     let b2 = self.stack.pop().unwrap();
-                    self.cpu.pc = b1 as u16 | ((b2 as u16) << 8);
+                    self.cpu.pc = (b1 as u16 | ((b2 as u16) << 8)) + 2;
                     return Ok(());
                 } else {
                     println!("Stack doesn't contain PC to return from the subroutine");
@@ -132,7 +134,6 @@ impl Emulator {
             },
             Instruction::SkipIfEq(vx, n) => {
                 let value = self.cpu.registers[*vx as usize];
-                println!("SkipIfEq: value: {}, n: {}", value, n);
                 if value == *n {
                     self.cpu.pc += 2;
                 }
@@ -258,6 +259,14 @@ impl Instruction {
                 let vx = ((opcode & 0x0F00) >> 8) as u8;
                 let vy = ((opcode & 0x00FF) >> 4) as u8;
                 Instruction::SkipIfRegNotEq(vx, vy)
+            },
+            _ if 0xF0FF & opcode == 0xF055 => {
+                let x = ((opcode & 0x0F00) >> 8) as u8;
+                Instruction::StoreMemory(x)
+            },
+            _ if 0xF0FF & opcode == 0xF065 => {
+                let x = ((opcode & 0x0F00) >> 8) as u8;
+                Instruction::LoadMemory(x)
             },
             0x0000 => Instruction::Nothing,
             _ => Instruction::NotYetImplemented(opcode),
@@ -397,7 +406,18 @@ mod tests {
         let opcode = 0x8F2E;
         let instruction = Instruction::from(opcode);
         assert_eq!(instruction, Instruction::ShiftLeft(0xF, 0x2));
-        
+    }
+
+    #[test]
+    fn test_store_and_load_memory() {
+        // Success
+        let opcode = 0xF155;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::StoreMemory(0x1));
+
+        let opcode = 0xF165;
+        let instruction = Instruction::from(opcode);
+        assert_eq!(instruction, Instruction::LoadMemory(0x1));
     }
     
 }
