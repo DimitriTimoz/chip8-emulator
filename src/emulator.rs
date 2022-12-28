@@ -7,7 +7,7 @@ use crate::cpu::{CPU};
 use crate::drivers::*;
 
 pub const START_RAM_ADDRESS: usize = 0x200;
-
+pub const FONT_OFFSET: usize = 0x50;
 pub struct Emulator {
     cpu: CPU,
     context: sdl2::Sdl,
@@ -40,7 +40,7 @@ impl Emulator {
                 0xF0, 0x80, 0xF0, 0x80, 0x80  // F
                 ];
 
-        ram[0x00..(0x00+FONTSET.len())].copy_from_slice(&FONTSET);
+        ram[FONT_OFFSET..(FONT_OFFSET+FONTSET.len())].copy_from_slice(&FONTSET);
 
         Ok(Emulator {
             cpu: CPU::new(),
@@ -57,7 +57,7 @@ impl Emulator {
         let mut event_pump = self.context.event_pump()?;
     
         'running: loop {
-            ::std::thread::sleep(Duration::from_millis(1));
+            ::std::thread::sleep(Duration::from_millis(100));
           
             self.cpu.cycle(&mut self.display_driver)?;
             for event in event_pump.poll_iter() {

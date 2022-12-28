@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::{emulator::START_RAM_ADDRESS, drivers::display::{WIDTH, HEIGHT, DisplayDriver}};
+use crate::{emulator::{START_RAM_ADDRESS, FONT_OFFSET}, drivers::display::{WIDTH, HEIGHT, DisplayDriver}};
 
 
 
@@ -183,6 +183,14 @@ impl CPU {
                     _ => return Err(format!("Unknown operation: {:X}", operation))
                 }
                 PCIncrement::Increment
+            },
+            0x9 => {
+                let vx = ((opcode & 0x0F00) >> 8) as u8;
+                let vy = ((opcode & 0x00F0) >> 4) as u8;
+                if self.registers[vx as usize] != self.registers[vy as usize] {
+                    self.pc += 2;
+                }
+                PCIncrement::Increment
             }
             0xA => {
                 let value = (opcode & 0x0FFF) as u16;
@@ -214,7 +222,7 @@ impl CPU {
                     0x1E => {
                         self.I += self.registers[x as usize] as u16;
                     },
-                    0x29 => self.I = 0x50 + self.registers[x as usize] as u16,
+                    0x29 => self.I = FONT_OFFSET as u16 + self.registers[x as usize] as u16,
                     0x33 => {
                         let value = self.registers[x as usize];
                         self.ram[self.I as usize] = value / 100;
@@ -260,7 +268,6 @@ impl CPU {
         let opcode = self.fetch_opcode();
         self.next_instruction(opcode)?;
         if self.vram_changed {
-            println!("Vram changed");
             driver.draw(&self.vram)?;
             self.vram_changed = false;
         }
