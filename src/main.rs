@@ -1,34 +1,13 @@
-use std::time::{ Duration};
-
-use sdl2::{keyboard::Keycode, event::Event};
-
 pub mod cpu;
 pub mod drivers;
 pub mod emulator;
 
 fn main() -> Result<(), String> {
-    let context = sdl2::init()?;
-    let mut event_pump = context.event_pump()?;
+    let mut emulator = emulator::Emulator::new()?;
 
-    let mut emulator = emulator::Emulator::new(&context)?;
+    emulator.load_program("c8_test.c8")?;
 
-    emulator.load_program("bc_test.ch8")?;
-
-    'running: loop {
-        ::std::thread::sleep(Duration::from_millis(50));
-      
-        emulator.next_instruction()?;
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-                _ => {}
-            }
-        }
-    }
+    emulator.run()?;
     Ok(())
 }
 
