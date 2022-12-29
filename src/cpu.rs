@@ -274,15 +274,19 @@ impl CPU {
             0xE => {
                 let opcode = opcode & 0x00FF;
                 let x = ((opcode & 0x0F00) >> 8) as usize;
-                let key = self.registers[x] as usize;
+                let key = self.registers[x] as u8;
+                if key > 0xF {
+                    println!("Invalid keypad key: {:X}", key);
+                } 
+                let key = key % 0xF;
                 match opcode {
                     0x9E => {
-                        if self.key_buffer[key] {
+                        if self.key_buffer[key as usize] {
                             self.pc += 2;
                         }
                     },
                     0xA1 => {
-                        if !self.key_buffer[key] {
+                        if !self.key_buffer[key as usize] {
                             self.pc += 2;
                         }
                     },
@@ -306,8 +310,7 @@ impl CPU {
                         }
                         if !key_pressed {
                             self.pc -= 2;
-                            return Ok(());
-                        }
+                        } 
                     },
                     0x15 => self.timer.counter = self.registers[x as usize],
                     0x18 => self.sound_timer.counter = self.registers[x as usize],

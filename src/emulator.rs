@@ -37,7 +37,7 @@ impl Emulator {
         let mut event_pump = self.context.event_pump()?;
     
          loop {
-            ::std::thread::sleep(Duration::from_micros(1));
+            ::std::thread::sleep(Duration::from_micros(600));
             self.cpu.timer.update();
             self.cpu.sound_timer.update();
             if !self.cpu.sound_timer.is_zero() {

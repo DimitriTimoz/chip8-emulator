@@ -5,7 +5,7 @@ pub mod emulator;
 fn main() -> Result<(), String> {
     let mut emulator = emulator::Emulator::new()?;
 
-    emulator.load_program("rom/test-audio.ch8")?;
+    emulator.load_program("rom/TETRIS")?;
 
     emulator.run()?;
     Ok(())

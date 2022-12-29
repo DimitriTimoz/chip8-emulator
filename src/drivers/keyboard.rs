@@ -40,7 +40,7 @@ impl KeyboardDriver {
                         Keycode::Q => Some(0x7),
                         Keycode::S => Some(0x8),
                         Keycode::D => Some(0x9),
-                        Keycode::F => Some(0xD),
+                        Keycode::F => Some(0xE),
                         Keycode::W => Some(0xA),
                         Keycode::X => Some(0x0),
                         Keycode::C => Some(0xB),
