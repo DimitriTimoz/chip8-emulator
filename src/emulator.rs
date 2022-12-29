@@ -4,7 +4,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
 use crate::cpu::{CPU};
-use crate::drivers::*;
+use crate::drivers::{*, self};
 
 pub const START_RAM_ADDRESS: usize = 0x200;
 pub const FONT_OFFSET: usize = 0x50;
@@ -58,48 +58,12 @@ impl Emulator {
     pub fn run(&mut self) -> Result<(), String> {
         let mut event_pump = self.context.event_pump()?;
     
-        'running: loop {
+         loop {
             ::std::thread::sleep(Duration::from_millis(10));
-          
-            self.cpu.cycle(&mut self.display_driver)?;
-            self.keyboard_driver.clear();
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => break 'running,
-                    Event::KeyDown {
-                        keycode: Some(keycode),
-                        ..
-                    } => {
-                        let code: Option<u8> = match keycode {
-                            Keycode::Num1 => Some(0x1),
-                            Keycode::Num2 => Some(0x2),
-                            Keycode::Num3 => Some(0x3),
-                            Keycode::Num4 => Some(0xc),
-                            Keycode::A => Some(0x4),
-                            Keycode::Z => Some(0x5),
-                            Keycode::E => Some(0x6),
-                            Keycode::R => Some(0xD),
-                            Keycode::Q => Some(0x7),
-                            Keycode::S => Some(0x8),
-                            Keycode::D => Some(0x9),
-                            Keycode::F => Some(0xD),
-                            Keycode::W => Some(0xA),
-                            Keycode::X => Some(0x0),
-                            Keycode::C => Some(0xB),
-                            Keycode::V => Some(0xF),
-                            _ => None
-                        };
-                        if let Some(code) = code {
-                            self.keyboard_driver.set_key(code, true);
-                        }
-                    },
-                    _ => {}
-                }
+            if self.keyboard_driver.keys_pressed(&mut event_pump, &mut  self.cpu.key_buffer) == drivers::keyboard::Result::Quit {
+                break;
             }
+            self.cpu.cycle(&mut self.display_driver)?;
         }
         Ok(())
     }

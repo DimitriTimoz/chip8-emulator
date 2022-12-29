@@ -18,6 +18,8 @@ pub(crate) struct CPU {
     stack: Vec<u8>,
     timer: Timer,
     sound_timer: Timer,
+    pub key_buffer: [bool; 16],
+
 }
 
 enum PCIncrement {
@@ -37,6 +39,7 @@ impl CPU {
             vram: [[false; WIDTH as usize]; HEIGHT as usize],
             vram_changed: false,
             stack: Vec::new(),
+            key_buffer: [false; 16],
         }
     }
 
@@ -230,8 +233,16 @@ impl CPU {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 let key = self.registers[x as usize];
                 match opcode {
-                    0x9E => {},
-                    0xA1 => {},
+                    0x9E => {
+                        if self.key_buffer[key as usize] {
+                            self.pc += 2;
+                        }
+                    },
+                    0xA1 => {
+                        if !self.key_buffer[key as usize] {
+                            self.pc += 2;
+                        }
+                    },
                     _ => return Err(format!("Unknown operation: {:X}", opcode))
                 }
                 PCIncrement::Increment
