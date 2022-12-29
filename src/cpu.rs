@@ -1,14 +1,29 @@
-use std::io::Read;
+use std::{io::Read, time::Instant};
 
 use crate::{emulator::{START_RAM_ADDRESS, FONT_OFFSET}, drivers::display::{WIDTH, HEIGHT, DisplayDriver}};
 
-
-
-struct Timer {
+pub struct Timer {
     counter: u8,
+    last_update: Instant,
 }
 
-pub(crate) struct CPU {
+const TARGET_FPS: u128 = 60;
+const TARGET_FRAME_TIME_MICROS: u128 = 1_000_000 / TARGET_FPS;
+
+impl Timer {
+    pub fn update(&mut self) {
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.last_update);
+        if elapsed.as_millis() >= TARGET_FRAME_TIME_MICROS {
+            if self.counter > 0 {
+                self.counter -= 1;
+            }
+            self.last_update = now;
+        }
+    } 
+}
+
+pub struct CPU {
     pc: u16,
     registers: [u8; 16],
     I: u16,
@@ -16,10 +31,9 @@ pub(crate) struct CPU {
     vram: [[bool; WIDTH as usize]; HEIGHT as usize],
     vram_changed: bool,
     stack: Vec<u8>,
-    timer: Timer,
-    sound_timer: Timer,
+    pub timer: Timer,
+    pub sound_timer: Timer,
     pub key_buffer: [bool; 16],
-
 }
 
 enum PCIncrement {
@@ -29,13 +43,35 @@ enum PCIncrement {
 
 impl CPU {
     pub fn new() -> CPU {
+        let mut ram = [0; 4096];
+        let fontset: [u8; 80] = [
+                0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+                0x20, 0x60, 0x20, 0x20, 0x70, // 1
+                0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+                0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+                0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+                0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+                0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+                0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+                0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+                0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+                0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+                0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+                0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+                0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+                0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+                0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+                ];
+
+        ram[FONT_OFFSET..(FONT_OFFSET+fontset.len())].copy_from_slice(&fontset);
+
         CPU {
             pc: START_RAM_ADDRESS as u16,
             registers: [0; 16],
-            timer: Timer { counter: 0 },
-            sound_timer: Timer { counter: 0 },
+            timer: Timer { counter: 0, last_update: Instant::now() },
+            sound_timer: Timer { counter: 0, last_update: Instant::now() },
             I: 0,
-            ram: [0; 4096],
+            ram,
             vram: [[false; WIDTH as usize]; HEIGHT as usize],
             vram_changed: false,
             stack: Vec::new(),
@@ -49,10 +85,13 @@ impl CPU {
         PCIncrement::Increment
     }
 
-    fn op_0x00EE(&mut self) -> PCIncrement{
-        let address = self.stack.pop().unwrap();
-        self.pc = address as u16;
-        PCIncrement::DontIncrement
+    fn op_0x00EE(&mut self) -> PCIncrement {
+        if self.stack.len() < 2 {
+            panic!("Stack underflow");
+        }
+        let pc = self.stack.pop().unwrap() as u16;
+        self.pc = (pc << 8) | self.stack.pop().unwrap() as u16; 
+        PCIncrement::Increment
     }
 
     fn op_0xDXYN(&mut self, vx: u8, vy: u8, n: u8) -> PCIncrement {
@@ -85,7 +124,7 @@ impl CPU {
     }
 
     pub fn next_instruction(&mut self, opcode: u16) -> Result<(), String> {
-        println!("-: {:X}", opcode);
+        println!("{} -: {:X}", self.pc, opcode);
         let operation = (opcode & 0xF000) >> 12;
         let next = match operation {
             // Clear VRAM
@@ -114,7 +153,7 @@ impl CPU {
             0x2 => {
                 let address = opcode & 0x0FFF;
                 self.stack.push((self.pc & 0xFF) as u8);
-                self.stack.push(((self.pc >> 8) & 0xFF) as u8);
+                self.stack.push((self.pc >> 8) as u8);
                 self.pc = address as u16;
                 PCIncrement::DontIncrement
             },
@@ -206,7 +245,7 @@ impl CPU {
             }
             0xA => {
                 let value = (opcode & 0x0FFF) as u16;
-                self.I= value;
+                self.I = value;
                 PCIncrement::Increment
             },
             0xB => {
@@ -230,16 +269,16 @@ impl CPU {
             // Keyboard
             0xE => {
                 let opcode = opcode & 0x00FF;
-                let x = ((opcode & 0x0F00) >> 8) as u8;
-                let key = self.registers[x as usize];
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let key = self.registers[x] as usize;
                 match opcode {
                     0x9E => {
-                        if self.key_buffer[key as usize] {
+                        if self.key_buffer[key] {
                             self.pc += 2;
                         }
                     },
                     0xA1 => {
-                        if !self.key_buffer[key as usize] {
+                        if !self.key_buffer[key] {
                             self.pc += 2;
                         }
                     },
@@ -251,17 +290,36 @@ impl CPU {
                 let operation = opcode & 0x00FF;
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 match operation {
+                    0x07 => self.registers[x as usize] = self.timer.counter,
+                    0x0A => {
+                        let mut key_pressed = false;
+                        for (i, key) in self.key_buffer.iter().enumerate() {
+                            if *key {
+                                self.registers[x as usize] = i as u8;
+                                key_pressed = true;
+                                break;
+                            }
+                        }
+                        if !key_pressed {
+                            self.pc -= 2;
+                            return Ok(());
+                        }
+                    },
+                    0x15 => self.timer.counter = self.registers[x as usize],
+                    0x18 => self.sound_timer.counter = self.registers[x as usize],
                     0x1E => {
                         self.I += self.registers[x as usize] as u16;
                     },
-                    0x29 => self.I = FONT_OFFSET as u16 + self.registers[x as usize] as u16,
+                    0x29 => {
+                        self.I = FONT_OFFSET as u16 + self.registers[x as usize] as u16
+                    },
                     0x33 => {
                         let value = self.registers[x as usize];
                         self.ram[self.I as usize] = value / 100;
                         self.ram[self.I as usize + 1] = (value / 10) % 10;
                         self.ram[self.I as usize + 2] = (value % 100) % 10;
                     },
-                    0x55 => {
+                    0x55 => {                        
                         for i in 0..=x {
                             self.ram[self.I as usize + i as usize] = self.registers[i as usize];
                         }
@@ -277,7 +335,6 @@ impl CPU {
                 }
                 PCIncrement::Increment
             },
-            0x0000 => PCIncrement::Increment,
             _ => { 
                 eprintln!("Unknown opcode: {:X}", opcode);
                 PCIncrement::Increment

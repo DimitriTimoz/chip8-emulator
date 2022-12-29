@@ -5,7 +5,7 @@ pub mod emulator;
 fn main() -> Result<(), String> {
     let mut emulator = emulator::Emulator::new()?;
 
-    emulator.load_program("TICTAC")?;
+    emulator.load_program("delay.ch8")?;
 
     emulator.run()?;
     Ok(())

@@ -1,13 +1,10 @@
 use std::time::Duration;
 
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-
-use crate::cpu::{CPU};
+use crate::cpu::CPU;
 use crate::drivers::{*, self};
 
 pub const START_RAM_ADDRESS: usize = 0x200;
-pub const FONT_OFFSET: usize = 0x50;
+pub const FONT_OFFSET: usize = 0x00;
 pub struct Emulator {
     cpu: CPU,
     context: sdl2::Sdl,
@@ -21,27 +18,6 @@ impl Emulator {
         let mut display_driver = display::DisplayDriver::new(&context)?;
 
         display_driver.init()?;
-        let mut ram = [0; 4096];
-        let FONTSET: [u8; 80] = [
-                0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-                0x20, 0x60, 0x20, 0x20, 0x70, // 1
-                0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-                0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-                0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-                0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-                0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-                0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-                0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-                0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-                0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-                0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-                0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-                0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-                0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-                0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-                ];
-
-        ram[FONT_OFFSET..(FONT_OFFSET+FONTSET.len())].copy_from_slice(&FONTSET);
 
         Ok(Emulator {
             cpu: CPU::new(),
@@ -59,7 +35,9 @@ impl Emulator {
         let mut event_pump = self.context.event_pump()?;
     
          loop {
-            ::std::thread::sleep(Duration::from_millis(10));
+            ::std::thread::sleep(Duration::from_micros(1));
+            self.cpu.timer.update();
+            self.cpu.sound_timer.update();
             if self.keyboard_driver.keys_pressed(&mut event_pump, &mut  self.cpu.key_buffer) == drivers::keyboard::Result::Quit {
                 break;
             }
