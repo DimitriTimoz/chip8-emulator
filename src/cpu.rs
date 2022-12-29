@@ -86,12 +86,21 @@ impl CPU {
         let operation = (opcode & 0xF000) >> 12;
         let next = match operation {
             // Clear VRAM
-            0x00E0 => {
-                self.clear_vram()
-            },
-            // Return from subroutine
-            0x00EE => {
-                self.op_0x00EE()
+            0x0 => {
+                let opcode = opcode & 0x00FF;
+                match opcode {
+                    0xE0 => {
+                        self.clear_vram()
+                    },
+                    // Return from subroutine
+                    0xEE => {
+                        self.op_0x00EE()
+                    },
+                    _ => {
+                        println!("Unknown opcode: {:X}", opcode);
+                        PCIncrement::Increment
+                    }
+                }
             },
             // Jump to address
             0x1 => {
@@ -215,6 +224,18 @@ impl CPU {
                 let vx = ((opcode & 0xF00) >> 8) as u8;
                 self.op_0xDXYN(vx, vy, n)
             },
+            // Keyboard
+            0xE => {
+                let opcode = opcode & 0x00FF;
+                let x = ((opcode & 0x0F00) >> 8) as u8;
+                let key = self.registers[x as usize];
+                match opcode {
+                    0x9E => {},
+                    0xA1 => {},
+                    _ => return Err(format!("Unknown operation: {:X}", opcode))
+                }
+                PCIncrement::Increment
+            }
             0xF => {
                 let operation = opcode & 0x00FF;
                 let x = ((opcode & 0x0F00) >> 8) as u8;
@@ -251,7 +272,9 @@ impl CPU {
                 PCIncrement::Increment
             },
         };
-
+        if self.pc >= 0xFFF {
+            self.pc %= 0xFFF;
+        }
         match next {
             PCIncrement::DontIncrement => (),
             PCIncrement::Increment => self.pc += 2,
