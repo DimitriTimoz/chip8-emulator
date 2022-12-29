@@ -14,13 +14,17 @@ impl Timer {
     pub fn update(&mut self) {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_update);
-        if elapsed.as_millis() >= TARGET_FRAME_TIME_MICROS {
+        if elapsed.as_micros() >= TARGET_FRAME_TIME_MICROS {
             if self.counter > 0 {
                 self.counter -= 1;
             }
             self.last_update = now;
         }
     } 
+
+    pub fn is_zero(&self) -> bool {
+        self.counter == 0
+    }
 }
 
 pub struct CPU {
