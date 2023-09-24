@@ -16,12 +16,10 @@ pub struct Emulator {
 impl Emulator {
     pub fn new() -> Result<Emulator, String> {
         let context = sdl2::init()?;
-        let mut display_driver = display::DisplayDriver::new(&context)?;
-
-        display_driver.init()?;
-
+        let display_driver = display::DisplayDriver::new(&context)?;
+        
         Ok(Emulator {
-            cpu: CPU::new(),
+            cpu: CPU::default(),
             display_driver,
             sound_driver: sound::SoundDriver::new(&context),
             context,

@@ -35,10 +35,6 @@ impl DisplayDriver {
         })
     }
 
-    pub fn init(&mut self) -> Result<(), String> {
-        Ok(())
-    }
-
     pub fn draw(&mut self, vram: &[[bool; WIDTH as usize]; HEIGHT as usize]) -> Result<(), String> {
         self.canvas.set_draw_color(sdl2::pixels::Color::WHITE);
         self.canvas.clear();

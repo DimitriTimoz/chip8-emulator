@@ -45,8 +45,8 @@ enum PCIncrement {
     DontIncrement,
 }
 
-impl CPU {
-    pub fn new() -> CPU {
+impl Default for CPU {
+    fn default() -> Self {
         let mut ram = [0; 4096];
         let fontset: [u8; 80] = [
                 0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -69,7 +69,7 @@ impl CPU {
 
         ram[FONT_OFFSET..(FONT_OFFSET+fontset.len())].copy_from_slice(&fontset);
 
-        CPU {
+        Self {
             pc: START_RAM_ADDRESS as u16,
             registers: [0; 16],
             timer: Timer { counter: 0, last_update: Instant::now() },
@@ -81,8 +81,11 @@ impl CPU {
             stack: Vec::new(),
             key_buffer: [false; 16],
         }
-    }
 
+    }
+}
+
+impl CPU {
     fn clear_vram(&mut self) -> PCIncrement {
         self.vram = [[false; WIDTH as usize]; HEIGHT as usize];
         self.vram_changed = true;
@@ -150,7 +153,7 @@ impl CPU {
             },
             // Jump to address
             0x1 => {
-                self.pc = (opcode & 0x0FFF) as u16;
+                self.pc = opcode & 0x0FFF;
                 PCIncrement::DontIncrement
             },
             // Call subroutine
@@ -158,7 +161,7 @@ impl CPU {
                 let address = opcode & 0x0FFF;
                 self.stack.push((self.pc & 0xFF) as u8);
                 self.stack.push((self.pc >> 8) as u8);
-                self.pc = address as u16;
+                self.pc = address;
                 PCIncrement::DontIncrement
             },
             // Skip if equal
@@ -248,12 +251,12 @@ impl CPU {
                 PCIncrement::Increment
             }
             0xA => {
-                let value = (opcode & 0x0FFF) as u16;
+                let value = opcode & 0x0FFF;
                 self.I = value;
                 PCIncrement::Increment
             },
             0xB => {
-                let value = (opcode & 0x0FFF) as u16;
+                let value = opcode & 0x0FFF;
                 self.pc = value + self.registers[0] as u16;
                 PCIncrement::DontIncrement
             },
@@ -274,7 +277,7 @@ impl CPU {
             0xE => {
                 let opcode = opcode & 0x00FF;
                 let x = ((opcode & 0x0F00) >> 8) as usize;
-                let key = self.registers[x] as u8;
+                let key = self.registers[x];
                 if key > 0xF {
                     println!("Invalid keypad key: {:X}", key);
                 } 
@@ -358,8 +361,7 @@ impl CPU {
     }
 
     pub fn fetch_opcode(&self) -> u16 {
-        let opcode = (self.ram[self.pc as usize] as u16) << 8 | self.ram[self.pc as usize + 1] as u16;
-        opcode
+        (self.ram[self.pc as usize] as u16) << 8 | self.ram[self.pc as usize + 1] as u16
     }
 
     pub fn cycle(&mut self, driver: &mut DisplayDriver) -> Result<(), String> {
@@ -378,7 +380,7 @@ impl CPU {
             Err(_) => return Err(format!("Could not open file {}", path)),
         };
         
-        file.read(&mut self.ram[START_RAM_ADDRESS..]).unwrap();
+        file.read_exact(&mut self.ram[START_RAM_ADDRESS..]).unwrap();
         Ok(())
     }
 }

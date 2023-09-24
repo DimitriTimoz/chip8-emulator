@@ -58,8 +58,14 @@ impl KeyboardDriver {
     }
 
     pub fn clear_buffer(&self, keys_buffer: &mut [bool; 16]) {
-        for i in 0..keys_buffer.len() {
+        (0..keys_buffer.len()).for_each(|i| {
             keys_buffer[i] = false;
-        }
+        });
+    }
+}
+
+impl Default for KeyboardDriver {
+    fn default() -> Self {
+        Self::new()
     }
 }
