@@ -30,7 +30,7 @@ impl Timer {
 pub struct CPU {
     pc: u16,
     registers: [u8; 16],
-    I: u16,
+    i: u16,
     ram: [u8; 4096],
     vram: [[bool; WIDTH as usize]; HEIGHT as usize],
     vram_changed: bool,
@@ -74,7 +74,7 @@ impl Default for CPU {
             registers: [0; 16],
             timer: Timer { counter: 0, last_update: Instant::now() },
             sound_timer: Timer { counter: 0, last_update: Instant::now() },
-            I: 0,
+            i: 0,
             ram,
             vram: [[false; WIDTH as usize]; HEIGHT as usize],
             vram_changed: false,
@@ -107,7 +107,7 @@ impl CPU {
         self.vram_changed = true;
         self.registers[0xF] = 0;
         for i in 0..n {
-            let byte = self.ram[self.I as usize + i as usize];
+            let byte = self.ram[self.i as usize + i as usize];
             let y = y + i;
             if y >= 32 {
                 break;
@@ -252,7 +252,7 @@ impl CPU {
             }
             0xA => {
                 let value = opcode & 0x0FFF;
-                self.I = value;
+                self.i = value;
                 PCIncrement::Increment
             },
             0xB => {
@@ -318,25 +318,25 @@ impl CPU {
                     0x15 => self.timer.counter = self.registers[x as usize],
                     0x18 => self.sound_timer.counter = self.registers[x as usize],
                     0x1E => {
-                        self.I += self.registers[x as usize] as u16;
+                        self.i += self.registers[x as usize] as u16;
                     },
                     0x29 => {
-                        self.I = FONT_OFFSET as u16 + self.registers[x as usize] as u16
+                        self.i = FONT_OFFSET as u16 + self.registers[x as usize] as u16
                     },
                     0x33 => {
                         let value = self.registers[x as usize];
-                        self.ram[self.I as usize] = value / 100;
-                        self.ram[self.I as usize + 1] = (value / 10) % 10;
-                        self.ram[self.I as usize + 2] = (value % 100) % 10;
+                        self.ram[self.i as usize] = value / 100;
+                        self.ram[self.i as usize + 1] = (value / 10) % 10;
+                        self.ram[self.i as usize + 2] = (value % 100) % 10;
                     },
                     0x55 => {                        
                         for i in 0..=x {
-                            self.ram[self.I as usize + i as usize] = self.registers[i as usize];
+                            self.ram[self.i as usize + i as usize] = self.registers[i as usize];
                         }
                     },
                     0x65 => {
                         for i in 0..=x {
-                            self.registers[i as usize] = self.ram[self.I as usize + i as usize];
+                            self.registers[i as usize] = self.ram[self.i as usize + i as usize];
                         }
                     }
                     _ => {
